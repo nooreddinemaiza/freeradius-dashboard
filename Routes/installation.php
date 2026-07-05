@@ -21,7 +21,7 @@ $router->redirectAll(
             '/installation/database',
             '/installation/migration',
             '/installation/administrator',
-            '/installation/nas',       
+            '/installation/nas',
             '/installation/nas/continue',
             '/Assets/styles/output.css',
             '/Assets/styles/install.css',
@@ -83,22 +83,7 @@ $router->group(['prefix' => '/installation'], function () use ($router, $config)
         return $config->database($request, ['step' => 1]);
     });
     $router->group(['prefix' => '/nas'], function () use ($router, $config) {
-        $router->get('', function (Request $request) use ($config) {
-            if (!$config->canAccessStep(17)) {
-                return $config->redirectToCurrentStep();
-            }
-            $meta = new Meta();
-            $meta->setTitle('Configuration du client NAS');
-            return View::response('admin_views', 'installation.php', [
-                'step'        => 17,
-                'total_steps' => 5,
-                'has_footer' => true,
-                'meta'        => $meta,
-                'title'       => 'Installation de l\'interface de gestion web',
-                'csrf_token'  => CSRF::generateToken(),
-                'message'     => '',
-            ]);
-        });
+        $router->get('', [$config, "nasPreview"]);
         $router->post('/', function (Request $request) use ($config) {
             return $config->nasAdd($request);
         });

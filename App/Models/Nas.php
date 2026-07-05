@@ -12,7 +12,7 @@ class Nas extends Model
     {
         try {
             $result = $this->db->table(self::TABLE)->get();
-        } catch (\Throwable $th) {
+        } catch (\Exception $th) {
             $result = [];
         }
         return $result;

@@ -6,7 +6,6 @@ use App\Models\Nas;
 use Core\Controllers\Controller;
 use Core\Exception\ValidationException;
 use Core\Helper\Data;
-use Throwable;
 
 class NasController extends Controller
 {
@@ -38,7 +37,7 @@ class NasController extends Controller
                 'port'       => 'numeric'
             ]);
             if ($errors) {
-                throw new ValidationException(errors:$errors);
+                throw new ValidationException(errors: $errors);
             }
             $result =  $this->model->add($data->toArray());
             return $result ? true : false;

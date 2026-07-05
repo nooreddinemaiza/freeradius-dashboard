@@ -1,7 +1,7 @@
+<pre>
 <?php
 
 use Core\Helper\AssetHelper;
-
 // Numérotation séquentielle affichée à l'utilisateur (1, 2, 3, 4, 5)
 // alors que les codes internes d'étape restent 0, 1, 15, 17, 2 (logique métier inchangée)
 $stepMap     = [0 => 1, 1 => 2, 15 => 3, 17 => 4, 2 => 5];
@@ -966,7 +966,7 @@ $view->section('content');
                                         </p>
 
                                         <!-- Liste des NAS déjà ajoutés -->
-                                        <?php if (!empty($data['data']['nas_list'])): ?>
+                                        <?php if (!empty($data['data']['nas_list'])): ?> 
                                             <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
                                                 <table class="w-full text-sm">
                                                     <thead class="bg-zinc-50 dark:bg-zinc-800 text-xs uppercase text-zinc-500">
