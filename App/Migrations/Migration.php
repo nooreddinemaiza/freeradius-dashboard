@@ -40,6 +40,7 @@ class Migration
         'radacct_daily_stats',
         'radacct_monthly_stats',
         'group_daily_stats',
+        'app_nas',
         // 'dns_logs',
         'sites',
         'site_journal'
@@ -161,7 +162,13 @@ class Migration
             );
         }
     }
-
+    /**
+     * Vérifie l'existence réelle d'une table en base (ne se fie jamais à une variable .env)
+     */
+    public function tableExists(string $tableName): bool
+    {
+        return in_array($tableName, $this->getExistingTableNames(), true);
+    }
     /**
      * Vérifie l'état du schéma de la base de données
      * 
@@ -772,6 +779,20 @@ class Migration
             INDEX idx_date (stat_date),
             INDEX idx_group_id (group_id)
         ) ENGINE=InnoDB COMMENT='Statistiques groupe agrégées par jour'";
+
+        return $this->db->createTable($sql);
+    }
+    private function createAppNasTable(): bool
+    {
+        $sql = "CREATE TABLE IF NOT EXISTS app_nas (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(253) NOT NULL,
+            ip_address VARCHAR(253) NOT NULL,
+            zone_name VARCHAR(253),
+            port int,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB COMMENT='Les clients NAS'";
 
         return $this->db->createTable($sql);
     }

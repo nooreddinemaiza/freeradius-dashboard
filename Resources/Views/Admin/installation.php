@@ -2,7 +2,11 @@
 
 use Core\Helper\AssetHelper;
 
-$total_steps = $total_steps ?? 2;
+// Numérotation séquentielle affichée à l'utilisateur (1, 2, 3, 4, 5)
+// alors que les codes internes d'étape restent 0, 1, 15, 17, 2 (logique métier inchangée)
+$stepMap     = [0 => 1, 1 => 2, 15 => 3, 17 => 4, 2 => 5];
+$total_steps = 5;
+$displayStep = $stepMap[$step] ?? $step;
 $titre = "";
 switch ($step) {
     case 0:
@@ -17,6 +21,9 @@ switch ($step) {
     case 15:
         $titre = "Vérification & Migration de la base de données";
         break;
+    case 17:
+        $titre = "Configuration des clients NAS";
+        break;
     default:
         $titre = "Étape inconnue";
         break;
@@ -25,7 +32,7 @@ $view->layout('layouts', 'main.php');
 $view->section('content');
 ?>
 <div class="min-h-screen bg-white dark:bg-zinc-900 overflow-hidden flex items-center justify-center p-4">
-        <div class="w-full" style="max-width: 760px;">
+    <div class="w-full" style="max-width: 760px;">
         <?php if ($step == 0): ?>
             <div class="welcome-wrap">
                 <!-- En-tête -->
@@ -60,10 +67,11 @@ $view->section('content');
                 <div style="display:flex;gap:.5rem;justify-content:center;margin-bottom:2rem;flex-wrap:wrap;">
                     <?php
                     $steps_overview = [
-                        ['0', 'Pré-requis',    'pill-blue'],
-                        ['1', 'Base de données', 'pill-blue'],
-                        ['1.5', 'Migration',      'pill-blue'],
-                        ['2', 'Administrateur', 'pill-blue'],
+                        ['1', 'Pré-requis',      'pill-blue'],
+                        ['2', 'Base de données', 'pill-blue'],
+                        ['3', 'Migration',       'pill-blue'],
+                        ['4', 'Client NAS',      'pill-blue'],
+                        ['5', 'Administrateur',  'pill-blue'],
                     ];
                     foreach ($steps_overview as $s):
                     ?>
@@ -412,17 +420,18 @@ $view->section('content');
                         <div style="display:flex;flex-direction:column;gap:.5rem;">
                             <?php
                             $install_steps = [
-                                ['0', 'Présentation & pré-requis', '(cette page)', 'pill-blue'],
-                                ['1', 'Connexion à la base de données', 'Renseignez les identifiants MySQL/MariaDB', 'pill-blue'],
-                                ['1.5', 'Vérification & Migration', 'Contrôle des tables RADIUS, création des entités applicatives', 'pill-violet'],
-                                ['2', 'Compte administrateur', 'Création du compte root unique', 'pill-blue'],
+                                ['1', 'Présentation & pré-requis', '(cette page)', 'pill-blue'],
+                                ['2', 'Connexion à la base de données', 'Renseignez les identifiants MySQL/MariaDB', 'pill-blue'],
+                                ['3', 'Vérification & Migration', 'Contrôle des tables RADIUS, création des entités applicatives', 'pill-violet'],
+                                ['4', 'Configuration du client NAS', 'Ajout du client NAS (pfSense) — un seul client suffit pour cette version', 'pill-blue'],
+                                ['5', 'Compte administrateur', 'Création du compte root unique', 'pill-blue'],
                             ];
                             foreach ($install_steps as $s): ?>
                                 <div style="display:flex;align-items:flex-start;gap:.75rem;
                                         padding:.55rem .7rem;border-radius:.6rem;
                                         background:#0d1117;border:1px solid #21262d;">
                                     <span class="pill <?= $s[3] ?>" style="flex-shrink:0;margin-top:.1rem;">
-                                        Étape <?= $s[0] ?>
+                                        Étape <?= $s[0] ?> / <?= $total_steps ?>
                                     </span>
                                     <div>
                                         <p style="margin:0;font-size:.85rem;font-weight:600;color:#e6edf3;"><?= $s[1] ?></p>
@@ -495,12 +504,8 @@ $view->section('content');
                                     </div>
                                 </div>
                             <?php endif; ?>
-
-                            <!-- ══════════════════════════════════════
-                     FORMULAIRE
-                ══════════════════════════════════════ -->
                             <form action="" method="POST" class="space-y-5" id="configForm"
-                                x-data="formConfig()" @submit.prevent="validateForm">
+                                <?= ($step == 1) ? 'x-data="formConfig()" @submit.prevent="validateForm"' : '' ?>>
                                 <input type="hidden" name="csrf_token" value="<?= $csrf_token ?? '' ?>">
 
                                 <?php if ($step == 1): ?>
@@ -589,6 +594,67 @@ $view->section('content');
                                         <?php endforeach; ?>
                                     </div>
 
+                                    <script>
+                                        function formConfig() {
+                                            return {
+                                                showDbPassword: false,
+                                                errors: {},
+                                                db_host: '<?= htmlspecialchars($_POST["db_host"]     ?? "127.0.0.1", ENT_QUOTES, "UTF-8") ?>',
+                                                db_port: '<?= htmlspecialchars($_POST["db_port"]     ?? "3306",      ENT_QUOTES, "UTF-8") ?>',
+                                                db_database: '<?= htmlspecialchars($_POST["db_database"] ?? "",          ENT_QUOTES, "UTF-8") ?>',
+                                                db_username: '<?= htmlspecialchars($_POST["db_username"] ?? "",          ENT_QUOTES, "UTF-8") ?>',
+                                                db_password: '<?= htmlspecialchars($_POST["db_password"] ?? "",          ENT_QUOTES, "UTF-8") ?>',
+                                                db_charset: '<?= htmlspecialchars($_POST["db_charset"]  ?? "utf8mb4",   ENT_QUOTES, "UTF-8") ?>',
+
+                                                validateField(field) {
+                                                    let isValid = true;
+                                                    if (field === 'db_host' && !this.db_host) {
+                                                        this.errors.db_host = "L'hôte est requis";
+                                                        isValid = false;
+                                                    }
+                                                    if (field === 'db_port' && !this.db_port) {
+                                                        this.errors.db_port = "Le port est requis";
+                                                        isValid = false;
+                                                    }
+                                                    if (field === 'db_database' && !this.db_database) {
+                                                        this.errors.db_database = "Le nom de la base est requis";
+                                                        isValid = false;
+                                                    }
+                                                    if (field === 'db_username' && !this.db_username) {
+                                                        this.errors.db_username = "Le nom d'utilisateur est requis";
+                                                        isValid = false;
+                                                    }
+                                                    return isValid;
+                                                },
+
+                                                validateForm() {
+                                                    let isValid = true;
+                                                    this.errors = {};
+                                                    <?php if ($step == 1): ?>
+                                                        if (!this.db_host) {
+                                                            this.errors.db_host = "L'hôte est requis";
+                                                            isValid = false;
+                                                        }
+                                                        if (!this.db_port) {
+                                                            this.errors.db_port = "Le port est requis";
+                                                            isValid = false;
+                                                        }
+                                                        if (!this.db_database) {
+                                                            this.errors.db_database = "Le nom de la base est requis";
+                                                            isValid = false;
+                                                        }
+                                                        if (!this.db_username) {
+                                                            this.errors.db_username = "Le nom d'utilisateur est requis";
+                                                            isValid = false;
+                                                        }
+                                                    <?php endif; ?>
+                                                    if (isValid) {
+                                                        document.getElementById('configForm').submit();
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    </script>
 
                                 <?php elseif ($step == 2): ?>
                                     <!-- ── Étape 2 : Administrateur ── -->
@@ -738,8 +804,7 @@ $view->section('content');
 
 
                                 <?php elseif ($step == 15):
-                                    $preview = $data['data']['preview'] ?? null;
-                                ?>
+                                    $preview = $data['data']['preview'] ?? null; ?>
                                     <!-- ── Étape 1.5 : Migration ── -->
                                     <div class="space-y-4">
                                         <?php if ($preview): ?>
@@ -890,6 +955,126 @@ $view->section('content');
                                         <?php endif; ?>
                                     </div>
 
+                                <?php elseif ($step == 17): ?>
+                                    <?php $hide_default_button = true; ?>
+                                    <div class="space-y-5">
+
+                                        <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                                            Ajoutez ici les équipements NAS (pfSense) qui pointeront vers cette plateforme.
+                                            Le lien du portail captif est généré automatiquement à partir du code de zone,
+                                            mais reste modifiable si nécessaire.
+                                        </p>
+
+                                        <!-- Liste des NAS déjà ajoutés -->
+                                        <?php if (!empty($data['data']['nas_list'])): ?>
+                                            <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                                                <table class="w-full text-sm">
+                                                    <thead class="bg-zinc-50 dark:bg-zinc-800 text-xs uppercase text-zinc-500">
+                                                        <tr>
+                                                            <th class="text-left px-4 py-2">Nom</th>
+                                                            <th class="text-left px-4 py-2">Adresse IP / domaine</th>
+                                                            <th class="text-left px-4 py-2">Zone / Lien portail</th>
+                                                            <th class="text-left px-4 py-2">Port</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <?php foreach ($data['data']['nas_list'] as $nas): ?>
+                                                            <tr class="border-t border-zinc-100 dark:border-zinc-800">
+                                                                <td class="px-4 py-2"><?= htmlspecialchars($nas['name']) ?></td>
+                                                                <td class="px-4 py-2"><?= htmlspecialchars($nas['ip_address']) ?></td>
+                                                                <td class="px-4 py-2 truncate max-w-[220px]"><?= htmlspecialchars($nas['zone_name']) ?></td>
+                                                                <td class="px-4 py-2"><?= htmlspecialchars((string)$nas['port']) ?></td>
+                                                            </tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-xs font-semibold uppercase text-zinc-500 mb-1.5">Nom du NAS <span class="text-red-600">*</span></label>
+                                                <input type="text" name="name" placeholder="Ex. NAS-ISTA-01"
+                                                    class="w-full px-4 py-2.5 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                                            </div>
+
+                                            <div>
+                                                <label class="block text-xs font-semibold uppercase text-zinc-500 mb-1.5">
+                                                    Adresse IP ou nom de domaine <span class="text-red-600">*</span>
+                                                </label>
+                                                <input type="text" name="ip_address" id="nas_ip_address" placeholder="192.168.1.1 ou nas.example.com"
+                                                    class="w-full px-4 py-2.5 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                                            </div>
+
+                                            <div>
+                                                <label class="block text-xs font-semibold uppercase text-zinc-500 mb-1.5">Port</label>
+                                                <input type="number" name="port" id="nas_port" placeholder="8002"
+                                                    class="w-full px-4 py-2.5 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                                            </div>
+
+                                            <div>
+                                                <label class="block text-xs font-semibold uppercase text-zinc-500 mb-1.5">Code de zone (pfSense)<span class="text-red-600">*</span></label>
+                                                <input type="text" id="nas_zone_code" placeholder="ista"
+                                                    class="w-full px-4 py-2.5 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                                                <p class="mt-1 text-xs text-zinc-400">Génère automatiquement le lien ci-dessous.</p>
+                                            </div>
+
+                                            <div class="md:col-span-2">
+                                                <label class="block text-xs font-semibold uppercase text-zinc-500 mb-1.5">
+                                                    Lien du portail captif <span class="text-red-600">*</span>
+                                                </label>
+                                                <input type="text" name="zone_name" id="nas_zone_name"
+                                                    placeholder="http://pfsense.idosr.net:8002/index.php?zone=ista"
+                                                    class="w-full px-4 py-2.5 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono">
+                                                <p class="mt-1 text-xs text-zinc-400">
+                                                    Généré automatiquement, mais modifiable manuellement si besoin.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <?php if (!empty($errors['name']) || !empty($errors['ip_address']) || !empty($errors['zone_name'])): ?>
+                                            <?php foreach (['name', 'ip_address', 'zone_name', 'port'] as $f): ?>
+                                                <?php if (!empty($errors[$f])): ?>
+                                                    <?php foreach ($errors[$f] as $e): ?>
+                                                        <p class="text-xs text-red-500"><?= $e ?></p>
+                                                    <?php endforeach; ?>
+                                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+
+                                        <button type="submit"
+                                            class="w-full py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white">
+                                            + Ajouter ce NAS
+                                        </button>
+
+                                        <!-- Continuer -->
+                                        <a href="/installation/nas/continue"
+                                            class="w-full py-3 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white">
+                                            Continuer vers la création de l'administrateur
+                                        </a>
+                                    </div>
+
+                                    <script>
+                                        (function() {
+                                            const ipInput = document.getElementById('nas_ip_address');
+                                            const portInput = document.getElementById('nas_port');
+                                            const zoneCode = document.getElementById('nas_zone_code');
+                                            const zoneName = document.getElementById('nas_zone_name');
+
+                                            if (!ipInput || !portInput || !zoneCode || !zoneName) return;
+
+                                            function buildZoneLink() {
+                                                const ip = ipInput.value.trim() || 'ip_addresse_ou_nomdomain';
+                                                const port = portInput.value.trim() || 'port';
+                                                const zone = zoneCode.value.trim() || 'nom_zone';
+                                                zoneName.value = 'http://' + ip + ':' + port + '/index.php?zone=' + zone;
+                                            }
+
+                                            ipInput.addEventListener('input', buildZoneLink);
+                                            portInput.addEventListener('input', buildZoneLink);
+                                            zoneCode.addEventListener('input', buildZoneLink);
+                                        })();
+                                    </script>
                                 <?php endif; ?>
 
                                 <!-- ── Bouton Continuer par défaut ── -->
@@ -917,76 +1102,13 @@ $view->section('content');
                 <!-- ── Footer ── -->
                 <div class="mt-5 text-center">
                     <p class="text-xs text-zinc-400 dark:text-zinc-600 tabular-nums">
-                        Étape <?= ($step != 15 ? $step : '1.5') ?> / <?= $total_steps ?>
+                        Étape <?= $displayStep ?> / <?= $total_steps ?>
                     </p>
                 </div>
             </div>
         <?php endif; ?>
     </div>
 </div>
-
-<script>
-    function formConfig() {
-        return {
-            showDbPassword: false,
-            errors: {},
-            db_host: '<?= htmlspecialchars($_POST["db_host"]     ?? "127.0.0.1", ENT_QUOTES, "UTF-8") ?>',
-            db_port: '<?= htmlspecialchars($_POST["db_port"]     ?? "3306",      ENT_QUOTES, "UTF-8") ?>',
-            db_database: '<?= htmlspecialchars($_POST["db_database"] ?? "",          ENT_QUOTES, "UTF-8") ?>',
-            db_username: '<?= htmlspecialchars($_POST["db_username"] ?? "",          ENT_QUOTES, "UTF-8") ?>',
-            db_password: '<?= htmlspecialchars($_POST["db_password"] ?? "",          ENT_QUOTES, "UTF-8") ?>',
-            db_charset: '<?= htmlspecialchars($_POST["db_charset"]  ?? "utf8mb4",   ENT_QUOTES, "UTF-8") ?>',
-
-            validateField(field) {
-                let isValid = true;
-                if (field === 'db_host' && !this.db_host) {
-                    this.errors.db_host = "L'hôte est requis";
-                    isValid = false;
-                }
-                if (field === 'db_port' && !this.db_port) {
-                    this.errors.db_port = "Le port est requis";
-                    isValid = false;
-                }
-                if (field === 'db_database' && !this.db_database) {
-                    this.errors.db_database = "Le nom de la base est requis";
-                    isValid = false;
-                }
-                if (field === 'db_username' && !this.db_username) {
-                    this.errors.db_username = "Le nom d'utilisateur est requis";
-                    isValid = false;
-                }
-                return isValid;
-            },
-
-            validateForm() {
-                let isValid = true;
-                this.errors = {};
-                <?php if ($step == 1): ?>
-                    if (!this.db_host) {
-                        this.errors.db_host = "L'hôte est requis";
-                        isValid = false;
-                    }
-                    if (!this.db_port) {
-                        this.errors.db_port = "Le port est requis";
-                        isValid = false;
-                    }
-                    if (!this.db_database) {
-                        this.errors.db_database = "Le nom de la base est requis";
-                        isValid = false;
-                    }
-                    if (!this.db_username) {
-                        this.errors.db_username = "Le nom d'utilisateur est requis";
-                        isValid = false;
-                    }
-                <?php endif; ?>
-                if (isValid) {
-                    document.getElementById('configForm').submit();
-                }
-            }
-        }
-    }
-</script>
-
 <?php
 
 

@@ -2,22 +2,23 @@
 
 namespace App;
 
-use Core\Logger;
-use Core\Helper\Data;
-use Core\System\CSRF;
-use Core\ViewEngine\View;
-use Core\Database\Database;
-use Core\Security\Encrypter;
-use Core\System\Environment;
+use App\Controllers\AdminController;
+use App\Controllers\NasController;
 use App\Migrations\Migration;
+use Core\Database\Database;
+use Core\Exception\ConfigurationException;
+use Core\Exception\ConnectionException;
+use Core\Exception\CSRFExeption;
+use Core\Exception\ValidationException;
+use Core\File;
+use Core\Helper\Data;
+use Core\Logger;
 use Core\Routing\Http\Request;
 use Core\Routing\Http\Response;
-use Core\Exception\CSRFExeption;
-use App\Controllers\AdminController;
-use Core\Exception\ConnectionException;
-use Core\Exception\ValidationException;
-use Core\Exception\ConfigurationException;
-use Core\File;
+use Core\Security\Encrypter;
+use Core\System\CSRF;
+use Core\System\Environment;
+use Core\ViewEngine\View;
 
 class Configuration
 {
@@ -77,6 +78,7 @@ class Configuration
      * 0  → Présentation / pré-requis
      * 1  → Configuration base de données
      * 15 → Migration (étape 1.5)
+     * 17 → NAS (étape 1.7)
      * 2  → Création administrateur
      * 3  → Installation complète
      */
@@ -90,6 +92,9 @@ class Configuration
         }
         if (!$this->isMigrationComplete()) {
             return 15;
+        }
+        if (!$this->isNasConfigured()) {
+            return 17;
         }
         if (!$this->isAdministratorConfigured()) {
             return 2;
@@ -124,6 +129,8 @@ class Configuration
                     $this->env->set('APP_START_UP', '1')->save();
                 }
                 return Response::redirect('/dashboard/login');
+            case 17:
+                return Response::redirect('/installation/nas');
             default:
                 return Response::redirect('/installation');
         }
@@ -367,7 +374,7 @@ class Configuration
             ]);
 
             if ($errors) {
-                throw new ValidationException($errors);
+                throw new ValidationException(errors:$errors);
             }
 
             if (!CSRF::validateToken($post['csrf_token'])) {
@@ -412,6 +419,114 @@ class Configuration
     }
 
     /**
+     * Vérifie si l'étape NAS a été validée par l'admin
+     */
+    public function isNasConfigured(): bool
+    {
+        return $this->env->has('APP_NAS') && $this->env->get('APP_NAS') === '1';
+    }
+    /**
+     * Affiche le formulaire NAS (GET)
+     */
+    public function nasPreview(): Response
+    {
+        if (!$this->canAccessStep(17)) {
+            return $this->redirectToCurrentStep();
+        }
+        try {
+            $nasController = new NasController;
+            $this->data['nas_list'] = $nasController->list();
+        } catch (\Exception $e) {
+            $this->data['errors']['checking'] = ['Erreur: ' . $e->getMessage()];
+        }
+
+        return $this->view('installation.php', 17);
+    }
+
+    /**
+     * Ajoute un NAS (POST)
+     */
+    public function nasAdd(Request $request): Response
+    {
+        try {
+            if (!$this->canAccessStep(17)) {
+                return $this->redirectToCurrentStep();
+            }
+
+            $post = $this->sanitize($request, ['csrf_token', 'name', 'ip_address', 'zone_name', 'port']);
+            Data::addLabel([
+                'name'       => 'Nom du NAS',
+                'ip_address' => 'Adresse IP / domaine',
+                'zone_name'  => 'Nom de zone et Lien du portail captif',
+                'port'       => 'Port',
+            ]);
+
+            $errors = $post->validate([
+                'csrf_token' => 'required',
+                'name'       => 'required|string|max:253',
+                'ip_address' => 'required|string|max:253',
+                'zone_name'  => 'required|string|max:253',
+                'port'       => 'numeric',
+            ]);
+
+            if ($errors) {
+                throw new ValidationException(errors:$errors);
+            }
+
+            if (!CSRF::validateToken($post['csrf_token'])) {
+                throw new CSRFExeption();
+            }
+
+            $nasController = new NasController;
+            $result = $nasController->add([
+                'name'       => trim($post['name']),
+                'ip_address' => trim($post['ip_address']),
+                'zone_name'  => trim($post['zone_name']),
+                'port'       => $post['port'] ?: null,
+            ]);
+            if ($result) {
+                $this->env->set('APP_NAS', '1')->save();
+                return Response::redirect('/installation/administrator');
+            }
+            return Response::redirect('/installation/nas');
+        } catch (ValidationException $e) {
+            $this->data['errors'] = $e->getErrors();
+            return $this->nasPreview();
+        } catch (CSRFExeption $e) {
+            $this->data['errors']['checking'] = array_merge($e->getErrors(), ['Veuillez recharger la page!']);
+            return $this->nasPreview();
+        } catch (\Exception $e) {
+            $this->data['errors']['checking'] = [$e->getMessage()];
+            return $this->nasPreview();
+        }
+    }
+
+    /**
+     * Valide l'étape NAS et passe à l'étape suivante (POST)
+     */
+    public function nasContinue(Request $request): Response
+    {
+        if (!$this->canAccessStep(17)) {
+            return $this->redirectToCurrentStep();
+        }
+
+        $post = $this->sanitize($request, ['csrf_token']);
+        if (!CSRF::validateToken($post['csrf_token'])) {
+            $this->data['errors']['checking'] = ['Jeton CSRF invalide. Veuillez recharger la page.'];
+            return $this->nasPreview();
+        }
+        $nasController = new NasController;
+        $nas_list = $nasController->list();
+        if (empty($nas_list)) {
+            $this->data['errors']['checking'] = ['Veuillez ajouter au moins un NAS avant de continuer.'];
+            return $this->nasPreview();
+        }
+
+        $this->env->set('APP_NAS', '1')->save();
+
+        return Response::redirect('/installation/administrator');
+    }
+    /**
      * Nettoie et valide les données de la requête
      */
     private function sanitize(Request $request, ?array $fields = [])
@@ -433,7 +548,7 @@ class Configuration
     {
         $data = [
             'step'        => $step,
-            'total_steps' => 2,
+            'total_steps' => 5,
             'message'     => $this->data['message'] ?? "",
             'has_header'  => false,
             'has_footer'  => true,
