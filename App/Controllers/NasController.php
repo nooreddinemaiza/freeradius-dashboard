@@ -45,4 +45,12 @@ class NasController extends Controller
             return false;
         }
     }
+    public function get(int $id)
+    {
+        return $this->model->get($id);
+    }
+    public function remove(int $id)
+    {
+        return $this->model->remove($id);
+    }
 }

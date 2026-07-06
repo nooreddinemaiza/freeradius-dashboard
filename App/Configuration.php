@@ -12,10 +12,12 @@ use Core\Exception\CSRFExeption;
 use Core\Exception\ValidationException;
 use Core\File;
 use Core\Helper\Data;
+use Core\Helper\Meta;
 use Core\Logger;
 use Core\Routing\Http\Request;
 use Core\Routing\Http\Response;
 use Core\Security\Encrypter;
+use Core\System\Config;
 use Core\System\CSRF;
 use Core\System\Environment;
 use Core\ViewEngine\View;
@@ -169,6 +171,7 @@ class Configuration
         }
 
         $this->env->set('SETUP_WELCOME', '1')->save();
+        $this->env->set('MAX_NAS', '1')->save();
 
         return Response::redirect('/installation/database');
     }
@@ -338,6 +341,27 @@ class Configuration
         }
     }
 
+    public function administratorPreview()
+    {
+        if (!$this->canAccessStep(2)) {
+            return $this->redirectToCurrentStep();
+        }
+        try {
+            $this->hasRoot();
+        } catch (\Exception $e) {
+            $this->data['errors']['checking'] = ['Erreur: ' . $e->getMessage()];
+        }
+        $this->data['title'] = "Création du compte admministrateur";
+        return $this->view(step: 2);
+    }
+    private function hasRoot()
+    {
+        $hasRoot = (new AdminController)->hasRoot();
+        if ($hasRoot) {
+            $this->data['root_detected'] = true;
+            throw new \Exception('Un ou plusieurs comptes administrateur root ont été détectés. Un seul compte root est autorisé sur la plateforme.');
+        }
+    }
     /**
      * Configuration de l'administrateur
      */
@@ -349,7 +373,7 @@ class Configuration
             if (!$this->canAccessStep(2)) {
                 return $this->redirectToCurrentStep();
             }
-
+            $this->hasRoot();
             $post = $this->sanitize($request, [
                 'csrf_token',
                 'fullname',
@@ -374,7 +398,7 @@ class Configuration
             ]);
 
             if ($errors) {
-                throw new ValidationException(errors:$errors);
+                throw new ValidationException(errors: $errors);
             }
 
             if (!CSRF::validateToken($post['csrf_token'])) {
@@ -407,17 +431,50 @@ class Configuration
             return Response::redirect('/dashboard/login');
         } catch (ValidationException $e) {
             $this->data['errors'] = $e->getErrors();
-            return $this->view('installation.php', 2);
         } catch (CSRFExeption $e) {
             $this->data['errors']['checking'] = $e->getErrors();
             $this->data['errors']['checking'][] = 'Veuillez recharger la page!';
-            return $this->view('installation.php', 2);
         } catch (ConfigurationException $e) {
             $this->data['errors']['checking'] = $e->getErrors();
-            return $this->view('installation.php', 2);
+        } catch (\Exception $e) {
+            $this->data['errors']['checking'] = ['Erreur: ' . $e->getMessage()];
         }
+        $this->data['title'] = "Création du compte admministrateur";
+        return $this->view(step: 2);
+    }
+    public function administratorPass(Request $request)
+    {
+        if (!$this->canAccessStep(2)) {
+            return $this->redirectToCurrentStep();
+        }
+        $this->env->set('APP_ADMIN', '1')->save();
+
+        return Response::redirect('/installation');
     }
 
+    public function administratorEmpty(Request $request)
+    {
+        if (!$this->canAccessStep(2)) {
+            return $this->redirectToCurrentStep();
+        }
+        try {
+            $post = $this->sanitize($request, [
+                'csrf_token',
+            ]);
+
+            if (!CSRF::validateToken($post['csrf_token'])) {
+                throw new CSRFExeption();
+            }
+            $result = (new AdminController)->dropAllRoots(true);
+            if (!$result) {
+                throw new \Exception('Une errer est survenue lors de la suppression des comptes, essayez plutard!');
+            }
+        } catch (\Exception $e) {
+            $this->data['errors']['checking'] = ['Erreur: ' . $e->getMessage()];
+        }
+
+        return Response::redirect('/installation');
+    }
     /**
      * Vérifie si l'étape NAS a été validée par l'admin
      */
@@ -428,7 +485,7 @@ class Configuration
     /**
      * Affiche le formulaire NAS (GET)
      */
-    public function nasPreview(): Response
+    public function nasPreview(Request $request): Response
     {
         if (!$this->canAccessStep(17)) {
             return $this->redirectToCurrentStep();
@@ -436,10 +493,25 @@ class Configuration
         try {
             $nasController = new NasController;
             $this->data['nas_list'] = $nasController->list();
+            $this->data['title'] = "Configuration des NAS";
+            if ($request->has('delete_nas')) {
+                $to_delete = $request->query('delete_nas');
+                if (!is_numeric($to_delete)) {
+                    throw new ValidationException('ID du NAS doit être numérique!');
+                }
+                $nas_exists = $nasController->get($to_delete);
+                if (!$nas_exists) {
+                    throw new ValidationException('NAS introuvable!');
+                }
+                $deleted = $nasController->remove($to_delete);
+                if (!$deleted) {
+                    throw new ValidationException('Une erreur est survenue lors de la suppression du NAS!');
+                }
+                return Response::redirect('/installation/nas');
+            }
         } catch (\Exception $e) {
             $this->data['errors']['checking'] = ['Erreur: ' . $e->getMessage()];
         }
-
         return $this->view('installation.php', 17);
     }
 
@@ -470,7 +542,7 @@ class Configuration
             ]);
 
             if ($errors) {
-                throw new ValidationException(errors:$errors);
+                throw new ValidationException(errors: $errors);
             }
 
             if (!CSRF::validateToken($post['csrf_token'])) {
@@ -478,6 +550,12 @@ class Configuration
             }
 
             $nasController = new NasController;
+            $nas_list = $nasController->list();
+            $app_data = Config::get('app');
+            $max_nas = $app_data["max_nas"] ?? 1;
+            if (count($nas_list) >= $max_nas) {
+                throw new ConfigurationException(message: 'Pour cette version ' . $max_nas . ' est le nombre maximal de clients NAS que vous pouvez avoir!');
+            }
             $result = $nasController->add([
                 'name'       => trim($post['name']),
                 'ip_address' => trim($post['ip_address']),
@@ -491,16 +569,15 @@ class Configuration
             return Response::redirect('/installation/nas');
         } catch (ValidationException $e) {
             $this->data['errors'] = $e->getErrors();
-            return $this->nasPreview();
+            return $this->nasPreview($request);
         } catch (CSRFExeption $e) {
             $this->data['errors']['checking'] = array_merge($e->getErrors(), ['Veuillez recharger la page!']);
-            return $this->nasPreview();
+            return $this->nasPreview($request);
         } catch (\Exception $e) {
             $this->data['errors']['checking'] = [$e->getMessage()];
-            return $this->nasPreview();
+            return $this->nasPreview($request);
         }
     }
-
     /**
      * Valide l'étape NAS et passe à l'étape suivante (POST)
      */
@@ -509,17 +586,11 @@ class Configuration
         if (!$this->canAccessStep(17)) {
             return $this->redirectToCurrentStep();
         }
-
-        $post = $this->sanitize($request, ['csrf_token']);
-        if (!CSRF::validateToken($post['csrf_token'])) {
-            $this->data['errors']['checking'] = ['Jeton CSRF invalide. Veuillez recharger la page.'];
-            return $this->nasPreview();
-        }
         $nasController = new NasController;
         $nas_list = $nasController->list();
         if (empty($nas_list)) {
             $this->data['errors']['checking'] = ['Veuillez ajouter au moins un NAS avant de continuer.'];
-            return $this->nasPreview();
+            return $this->nasPreview($request);
         }
 
         $this->env->set('APP_NAS', '1')->save();
@@ -546,12 +617,17 @@ class Configuration
      */
     private function view(?string $view = null, int $step = 1): Response
     {
+
+        $meta = new Meta();
+        $meta->setTitle($this->data['title'] ?? 'Configuration de la plateforme');
         $data = [
             'step'        => $step,
             'total_steps' => 5,
             'message'     => $this->data['message'] ?? "",
             'has_header'  => false,
             'has_footer'  => true,
+            'root_detected'  => false,
+            'meta'  => $meta,
             'errors'      => $this->data['errors'] ?? [],
             'csrf_token'  => $this->data['csrf_token'] ?? CSRF::generateToken(),
             'data'        => $this->data,
@@ -561,6 +637,7 @@ class Configuration
             $data['token'] = $this->data['token'];
         }
 
+        $data = array_merge($data, $this->data);
         return View::response('admin_views', $view ?? 'installation.php', $data);
     }
 }

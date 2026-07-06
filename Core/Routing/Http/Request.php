@@ -391,7 +391,6 @@ class Request
     {
         return $key ? $this->query->get($key, $default) : $this->query->all();
     }
-
     public function post(?string $key = null, mixed $default = null): mixed
     {
         return $key ? $this->post->get($key, $default) : $this->post->all();
@@ -650,7 +649,7 @@ class Request
      *
      * @return string|null
      */
-    function getUrlParam(string $paramName): ?string
+    public function getUrlParam(string $paramName): ?string
     {
         $query = parse_url($this->referer(), PHP_URL_QUERY);
 
@@ -701,14 +700,14 @@ class Request
         return empty($errors);
     }
 
-    
+
     public function validatePassword(string $field, int $minLength = 8): bool
     {
         $errors = $this->validate([$field => "required|string|min:{$minLength}"]);
         return empty($errors);
     }
 
-    
+
     public function validatePasswordConfirmation(string $passwordField, string $confirmationField): bool
     {
         $errors = $this->validate([

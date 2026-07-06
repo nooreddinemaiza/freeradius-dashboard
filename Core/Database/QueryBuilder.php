@@ -644,17 +644,17 @@ class QueryBuilder
         return $this;
     }
 
-    public function leftJoin(string $table, $first, string $operator = null, string $second = null): self
+    public function leftJoin(string $table, $first, ?string $operator = null, ?string $second = null): self
     {
         return $this->join($table, $first, $operator, $second, 'LEFT');
     }
 
-    public function rightJoin(string $table, $first, string $operator = null, string $second = null): self
+    public function rightJoin(string $table, $first, ?string $operator = null, ?string $second = null): self
     {
         return $this->join($table, $first, $operator, $second, 'RIGHT');
     }
 
-    public function fullJoin(string $table, $first, string $operator = null, string $second = null): self
+    public function fullJoin(string $table, $first, ?string $operator = null, ?string $second = null): self
     {
         return $this->join($table, $first, $operator, $second, 'FULL');
     }
@@ -1247,7 +1247,7 @@ class QueryBuilder
         }
     }
 
-    public function insertGetId(array $data, string $sequence = null): int
+    public function insertGetId(array $data, ?string $sequence = null): int
     {
         $this->insert($data);
         return (int) $this->db->getPdo()->lastInsertId($sequence);

@@ -30,4 +30,17 @@ class Nas extends Model
         );
         return $result;
     }
+    public function get(int $id): ?array
+    {
+        try {
+            $result = $this->db->table(self::TABLE)->where('id', $id)->select()->first();
+        } catch (\Exception $th) {
+            $result = null;
+        }
+        return $result;
+    }
+    public function remove(int $id)
+    {
+        return $this->db->table(self::TABLE)->where('id', $id)->delete();
+    }
 }

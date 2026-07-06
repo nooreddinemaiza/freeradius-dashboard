@@ -427,13 +427,25 @@ class Admin extends Model
     /**
      * Vérifie si un compte root existe
      */
-    private function hasRoot(): bool
+    public function hasRoot(): bool
     {
-        $result = $this->db->fetch(
-            'SELECT id FROM ' . self::TABLE . ' WHERE type = :type LIMIT 1',
-            [':type' => 'root']
-        );
+        $result = $this->db->table(self::TABLE)
+            ->select('id')
+            ->where('type', 'root')
+            ->get();
+        return !empty($result);
+    }
 
+    public function dropAllRoots(bool $validate = false): bool
+    {
+        if (!$validate) return false;
+        try {
+            $result = $this->db->table(self::TABLE)
+                ->where('type', 'root')
+                ->delete();
+        } catch (\Throwable $th) {
+            $result = false;
+        }
         return $result ? true : false;
     }
 

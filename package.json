@@ -1,0 +1,7 @@
+{
+  "scripts": {
+    "watch:css": "tailwindcss -i Storage/Files/global.css -o Public/Assets/styles/output.css --watch",
+    "build": "tailwindcss -i Storage/Files/global.css -o Public/Assets/styles/output.css"
+
+  }
+}

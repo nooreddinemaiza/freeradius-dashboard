@@ -6,7 +6,7 @@ class ConnectionException extends \Exception
 {
     protected $errors = [];
 
-    public function __construct($message = "Connection failed", $errors = [], $code = 0, \Throwable $previous = null)
+    public function __construct($message = "Connection failed", $errors = [], $code = 0, ?\Throwable $previous = null)
     {
         parent::__construct($message, $code, $previous);
         $this->errors = $errors;

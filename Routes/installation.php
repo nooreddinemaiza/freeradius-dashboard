@@ -21,6 +21,8 @@ $router->redirectAll(
             '/installation/database',
             '/installation/migration',
             '/installation/administrator',
+            '/installation/administrator/pass',
+            '/installation/administrator/empty',
             '/installation/nas',
             '/installation/nas/continue',
             '/Assets/styles/output.css',
@@ -102,24 +104,16 @@ $router->group(['prefix' => '/installation'], function () use ($router, $config)
     });
 
     // Étape 2 : Création de l'administrateur
-    $router->get('/administrator', function (Request $request) use ($config) {
-        if (!$config->canAccessStep(2)) {
-            return $config->redirectToCurrentStep();
-        }
-        $meta = new Meta();
-        $meta->setTitle('Création de l\'administrateur');
-        return View::response('admin_views', 'installation.php', [
-            'step'        => 2,
-            'total_steps' => 5,
-            'has_footer' => true,
-            'meta'        => $meta,
-            'title'       => 'Installation de l\'interface de gestion web',
-            'csrf_token'  => CSRF::generateToken(),
-            'message'     => '',
-        ]);
-    });
-
-    $router->post('/administrator', function (Request $request) use ($config) {
-        return $config->administrator($request, ['step' => 2]);
+    $router->group(['prefix' => '/administrator'], function () use ($router, $config) {
+        $router->get('', [$config, "administratorPreview"]);
+        $router->post('', function (Request $request) use ($config) {
+            return $config->administrator($request, ['step' => 2]);
+        });
+        $router->post('/empty', function (Request $request) use ($config) {
+            return $config->administratorEmpty($request);
+        });
+        $router->get('/pass', function (Request $request) use ($config) {
+            return $config->administratorPass($request);
+        });
     });
 });

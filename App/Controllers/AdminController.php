@@ -654,4 +654,14 @@ class AdminController extends Controller
         $this->data['view'] = 'dashboard.php';
         return $this->view();
     }
+    public function hasRoot(): bool
+    {
+        return $this->model->hasRoot();
+    }
+    public function dropAllRoots(bool $validate = false)
+    {
+        if (!$validate) return false;
+        $result = $this->model->dropAllRoots($validate);
+        return $result;
+    }
 }

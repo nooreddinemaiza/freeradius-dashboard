@@ -18,5 +18,6 @@ return [
                 </a>',
     "captive_URL" => $env->get("CAP_URL", ""),
     "key" => $env->get("APP_key", ""),
+    "max_nas" => (int)$env->get("MAX_NAS", 1),
     "env" => $env->get("APP_ENV", "production"),
 ];

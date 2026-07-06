@@ -1,33 +1,40 @@
 <pre>
 <?php
+echo "</pre>";
 
 use Core\Helper\AssetHelper;
-// Numérotation séquentielle affichée à l'utilisateur (1, 2, 3, 4, 5)
-// alors que les codes internes d'étape restent 0, 1, 15, 17, 2 (logique métier inchangée)
+
 $stepMap     = [0 => 1, 1 => 2, 15 => 3, 17 => 4, 2 => 5];
 $total_steps = 5;
 $displayStep = $stepMap[$step] ?? $step;
 $titre = "";
+$form_action = "/installation";
 switch ($step) {
     case 0:
         $titre = "Bienvenue & Pré-requis";
         break;
     case 1:
         $titre = "Configuration de la base de données";
+        $form_action .= "/database";
         break;
     case 2:
         $titre = "Création de l'administrateur";
+        $form_action .= "/administrator";
+        if (isset($data['root_detected']) and $data['root_detected']) $form_action .= "/empty";
         break;
     case 15:
         $titre = "Vérification & Migration de la base de données";
+        $form_action .= "/migration";
         break;
     case 17:
         $titre = "Configuration des clients NAS";
+        $form_action .= "/nas";
         break;
     default:
         $titre = "Étape inconnue";
         break;
 }
+
 $view->layout('layouts', 'main.php');
 $view->section('content');
 ?>
@@ -504,7 +511,7 @@ $view->section('content');
                                     </div>
                                 </div>
                             <?php endif; ?>
-                            <form action="" method="POST" class="space-y-5" id="configForm"
+                            <form action="<?= $form_action ?>" method="POST" class="space-y-5" id="configForm"
                                 <?= ($step == 1) ? 'x-data="formConfig()" @submit.prevent="validateForm"' : '' ?>>
                                 <input type="hidden" name="csrf_token" value="<?= $csrf_token ?? '' ?>">
 
@@ -658,45 +665,188 @@ $view->section('content');
 
                                 <?php elseif ($step == 2): ?>
                                     <!-- ── Étape 2 : Administrateur ── -->
+                                     <?php if ($data['root_detected']): ?>
+                                        
+                  
+  <div class="mx-auto max-w-2xl">
+
+    <details class="group mb-4 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900" open>
+
+      <summary class="flex cursor-pointer list-none items-center justify-between gap-3 p-4 select-none">
+        <div class="flex min-w-0 items-center gap-3">
+          <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-red-50 dark:bg-red-500/10">
+            <svg class="h-4.5 w-4.5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-base font-semibold text-gray-900 dark:text-gray-100">
+                Compte administrateur unique
+              </span>
+              <span class="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/20">
+                Obligatoire
+              </span>
+            </div>
+            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+              Des comptes root existants ont été détectés sur cette instance
+            </p>
+          </div>
+        </div>
+        <svg class="h-4 w-4 flex-shrink-0 text-gray-400 transition-transform duration-200 group-open:rotate-90" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </summary>
+
+      <div class="flex flex-col gap-3 border-t border-gray-100 px-4 pb-4 pt-4 dark:border-gray-800">
+
+        <p class="m-0 rounded-lg bg-red-50 px-3.5 py-3 text-sm leading-relaxed text-red-700 ring-1 ring-inset ring-red-100 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/20">
+          Pour des raisons de <strong class="font-semibold">sécurité</strong>, la plateforme n'autorise qu'un seul compte administrateur de type
+          <strong class="font-semibold">root</strong>.
+        </p>
+
+        <div class="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3.5 dark:border-gray-800 dark:bg-gray-800/50">
+          <svg class="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          <p class="m-0 text-sm font-medium text-gray-800 dark:text-gray-200">
+            Un ou plusieurs comptes <span class="font-semibold text-red-600 dark:text-red-400">root</span> existent déjà sur cette installation.
+          </p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3.5 dark:border-gray-800 dark:bg-gray-800/50">
+          <p class="m-0 text-sm font-semibold text-gray-900 dark:text-gray-100">
+            Supprimez ces comptes avant d'en créer un nouveau
+          </p>
+          <p class="m-0 mt-1.5 text-[0.8rem] leading-relaxed text-gray-500 dark:text-gray-400">
+            Si ces comptes proviennent d'une installation précédente, nous vous recommandons de les supprimer :
+            ils bloquent la validation de la création du nouveau compte. Le premier compte détecté sera utilisé comme compte root.
+          </p>
+        </div>
+
+        <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3.5 dark:border-amber-500/20 dark:bg-amber-500/10">
+          <svg class="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          <p class="m-0 text-[0.83rem] leading-relaxed text-amber-800 dark:text-amber-300">
+            Nous déconseillons de <strong class="font-semibold">passer cette étape</strong> sans supprimer les comptes existants pour une installation propre.
+            Réutiliser un compte issu d'une autre installation peut provoquer des erreurs de connexion
+            (identifiants oubliés, chiffrement du mot de passe incompatible entre versions...).
+          </p>
+        </div>
+
+        <div class="flex flex-col-reverse items-stretch justify-end gap-2.5 pt-1 sm:flex-row sm:items-center">
+          <button type="button" onclick="skipDialog.showModal()"
+            class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100">
+            Passer cette étape
+          </button>
+          <button type="button" onclick="deleteDialog.showModal()"
+            class="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900">
+            Supprimer les comptes root
+          </button>
+        </div>
+
+      </div>
+    </details>
+  </div>
+
+  <!-- Dialogue de confirmation : Passer l'étape -->
+  <dialog id="skipDialog" class="m-auto w-full max-w-sm rounded-xl border border-gray-200 bg-white p-0 shadow-xl backdrop:bg-gray-900/50 dark:border-gray-800 dark:bg-gray-900 dark:backdrop:bg-black/70">
+      <div class="flex items-start gap-3 p-3">
+        <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-500/10">
+          <svg class="h-5 w-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">
+            Passer sans supprimer les comptes ?
+          </h2>
+          <p class="mt-1.5 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+            Les comptes root existants resteront actifs. Cela peut entraîner des erreurs de connexion
+            si un mot de passe a été chiffré avec une version différente de la plateforme.
+          </p>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2.5 p-3">
+        <button value="cancel" type="button" onclick="skipDialog.close()" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">
+          Annuler
+        </button>
+        <a href="/installation/administrator/pass"
+          class="rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-amber-600">
+          Confirmer et passer
+        </a>
+      </div>
+  </dialog>
+
+  <!-- Dialogue de confirmation : Suppression des comptes root -->
+  <dialog id="deleteDialog" class="m-auto w-full max-w-sm rounded-xl border border-gray-200 bg-white p-0 shadow-xl backdrop:bg-gray-900/50 dark:border-gray-800 dark:bg-gray-900 dark:backdrop:bg-black/70">
+      <div class="flex items-start gap-3 p-3">
+        <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-50 dark:bg-red-500/10">
+          <svg class="h-5 w-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">
+            Supprimer définitivement les comptes root ?
+          </h2>
+          <p class="mt-1.5 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+            Cette action est irréversible. Tous les comptes root existants seront supprimés
+            pour permettre la création d'un nouveau compte administrateur.
+          </p>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2.5 p-3">
+        <button value="cancel"  type="button" onclick="deleteDialog.close()" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">
+          Annuler
+        </button>
+        <button type="submit"
+          class="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">
+          Oui, supprimer
+        </button>
+      </div>
+  </dialog>
+                                     <?php else: ?>
                                     <div class="space-y-5" x-data="adminConfig()">
 
                                         <?php
-                                        $adminFields = [
-                                            [
-                                                'id'          => 'fullname',
-                                                'label'       => 'Nom complet',
-                                                'type'        => 'text',
-                                                'placeholder' => 'Ex. Noureddine Ma..',
-                                                'model'       => 'fullname',
-                                                'icon'        => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
-                                            ],
-                                            [
-                                                'id'          => 'email',
-                                                'label'       => 'Email',
-                                                'type'        => 'email',
-                                                'placeholder' => 'admin@example.com',
-                                                'model'       => 'email',
-                                                'icon'        => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M16 12a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>',
-                                            ],
-                                            [
-                                                'id'          => 'password',
-                                                'label'       => 'Mot de passe',
-                                                'type'        => 'password',
-                                                'placeholder' => 'Mot de passe sécurisé',
-                                                'model'       => 'password',
-                                                'toggle'      => 'showPassword',
-                                                'icon'        => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>',
-                                            ],
-                                            [
-                                                'id'          => 'password_confirm',
-                                                'label'       => 'Confirmer le mot de passe',
-                                                'type'        => 'password',
-                                                'placeholder' => 'Retapez le mot de passe',
-                                                'model'       => 'passwordConfirm',
-                                                'toggle'      => 'showPasswordConfirm',
-                                                'icon'        => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>',
-                                            ],
-                                        ];
+                                            $adminFields = [
+                                                [
+                                                    'id'          => 'fullname',
+                                                    'label'       => 'Nom complet',
+                                                    'type'        => 'text',
+                                                    'placeholder' => 'Ex. Noureddine Ma..',
+                                                    'model'       => 'fullname',
+                                                    'icon'        => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+                                                ],
+                                                [
+                                                    'id'          => 'email',
+                                                    'label'       => 'Email',
+                                                    'type'        => 'email',
+                                                    'placeholder' => 'admin@example.com',
+                                                    'model'       => 'email',
+                                                    'icon'        => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M16 12a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>',
+                                                ],
+                                                [
+                                                    'id'          => 'password',
+                                                    'label'       => 'Mot de passe',
+                                                    'type'        => 'password',
+                                                    'placeholder' => 'Mot de passe sécurisé',
+                                                    'model'       => 'password',
+                                                    'toggle'      => 'showPassword',
+                                                    'icon'        => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>',
+                                                ],
+                                                [
+                                                    'id'          => 'password_confirm',
+                                                    'label'       => 'Confirmer le mot de passe',
+                                                    'type'        => 'password',
+                                                    'placeholder' => 'Retapez le mot de passe',
+                                                    'model'       => 'passwordConfirm',
+                                                    'toggle'      => 'showPasswordConfirm',
+                                                    'icon'        => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>',
+                                                ],
+                                            ];
                                         ?>
 
                                         <?php foreach ($adminFields as $f): ?>
@@ -801,6 +951,7 @@ $view->section('content');
                                             }
                                         }
                                     </script>
+                                    <?php endif; ?>
 
 
                                 <?php elseif ($step == 15):
@@ -955,8 +1106,7 @@ $view->section('content');
                                         <?php endif; ?>
                                     </div>
 
-                                <?php elseif ($step == 17): ?>
-                                    <?php $hide_default_button = true; ?>
+                                <?php elseif ($step == 17): $hide_default_button = true; ?>
                                     <div class="space-y-5">
 
                                         <p class="text-sm text-zinc-500 dark:text-zinc-400">
@@ -975,6 +1125,16 @@ $view->section('content');
                                                             <th class="text-left px-4 py-2">Adresse IP / domaine</th>
                                                             <th class="text-left px-4 py-2">Zone / Lien portail</th>
                                                             <th class="text-left px-4 py-2">Port</th>
+                                                            <th class="text-left px-4 py-2">
+                                                                <span class="p-1.5rounded" title="Supprimer">
+                                                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fill-rule="evenodd"
+                                                                        d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                                                        clip-rule="evenodd" />
+                                                                </svg>
+                                                                </span>
+                                                            </th>
+                                                            
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -984,6 +1144,17 @@ $view->section('content');
                                                                 <td class="px-4 py-2"><?= htmlspecialchars($nas['ip_address']) ?></td>
                                                                 <td class="px-4 py-2 truncate max-w-[220px]"><?= htmlspecialchars($nas['zone_name']) ?></td>
                                                                 <td class="px-4 py-2"><?= htmlspecialchars((string)$nas['port']) ?></td>
+                                                                <td class="px-4 py-2">
+                                                                    <a href="?delete_nas=<?= htmlspecialchars((string)$nas['id']) ?>"
+                                                                        class="p-1.5 text-gray-600 hover:text-red-600  dark:text-gray-400 dark:hover:text-red-400 rounded transition-colors"
+                                                                        title="Supprimer">
+                                                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                                            <path fill-rule="evenodd"
+                                                                                d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                                                                clip-rule="evenodd" />
+                                                                        </svg>
+                                                                    </a>
+                                                            </td>
                                                             </tr>
                                                         <?php endforeach; ?>
                                                     </tbody>
@@ -1078,7 +1249,8 @@ $view->section('content');
                                 <?php endif; ?>
 
                                 <!-- ── Bouton Continuer par défaut ── -->
-                                <?php if (($step ?? 1) !== 15 && empty($hide_default_button)): ?>
+                                 
+                                <?php if (!$data['root_detected'] && ($step ?? 1) !== 15 && empty($hide_default_button)): ?>
                                     <div class="pt-6">
                                         <button type="submit"
                                             class="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl text-sm font-semibold
